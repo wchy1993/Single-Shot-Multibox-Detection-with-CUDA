@@ -89,19 +89,120 @@ void decode_predictions(const std::vector<cv::cuda::GpuMat> &class_scores, const
 }
 
 
-void apply_nms(float nms_threshold, std::vector<cv::Rect2f> &decoded_boxes, std::vector<int> &decoded_labels, std::vector<float> &decoded_scores) {
-    std::vector<cv::dnn::DetectionOutputLayer<float>::Box> boxes;
-    for (const auto &rect : decoded_boxes) {
-        boxes.push_back({rect.x, rect.y, rect.x + rect.width, rect.y + rect.height});
+// void apply_nms(float nms_threshold, std::vector<cv::Rect2f> &decoded_boxes, std::vector<int> &decoded_labels, std::vector<float> &decoded_scores) {
+//     std::vector<cv::dnn::DetectionOutputLayer<float>::Box> boxes;
+//     for (const auto &rect : decoded_boxes) {
+//         boxes.push_back({rect.x, rect.y, rect.x + rect.width, rect.y + rect.height});
+//     }
+
+//     cv::dnn::DetectionOutputLayer<float>::nms(boxes, decoded_scores, decoded_labels, nms_threshold);
+
+//     // 将检测结果更新为执行NMS后的结果
+//     decoded_boxes.resize(boxes.size());
+//     for (size_t i = 0; i < boxes.size(); ++i) {
+//         decoded_boxes[i] = cv::Rect2f(boxes[i].x, boxes[i].y, boxes[i].width - boxes[i].x, boxes[i].height - boxes[i].y);
+//     }
+// }
+
+struct BoundingBox {
+  float x1, y1, x2, y2, score;
+  int label;
+};
+
+// 比较函数，用于排序
+struct BBoxCompare {
+  __host__ __device__
+  bool operator()(const BoundingBox& a, const BoundingBox& b) const {
+    return a.score > b.score;
+  }
+};
+
+__device__ float IoU(BoundingBox a, BoundingBox b) {
+  float x1 = max(a.x1, b.x1);
+  float y1 = max(a.y1, b.y1);
+  float x2 = min(a.x2, b.x2);
+  float y2 = min(a.y2, b.y2);
+
+  float intersection = max(0.0f, x2 - x1 + 1) * max(0.0f, y2 - y1 + 1);
+  float areaA = (a.x2 - a.x1 + 1) * (a.y2 - a.y1 + 1);
+  float areaB = (b.x2 - b.x1 + 1) * (b.y2 - b.y1 + 1);
+
+  return intersection / (areaA + areaB - intersection);
+}
+
+
+
+__global__ void nms_kernel(BoundingBox* d_bboxes, int* d_nms, int num_bboxes, float threshold) {
+  extern __shared__ float shared_mem[];
+  float* shared_coords = shared_mem;
+  float* shared_scores = (float*)&shared_coords[4 * blockDim.x];
+
+  cooperative_groups::thread_block block = cooperative_groups::this_thread_block();
+
+  int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  if (idx >= num_bboxes) return;
+
+  BoundingBox my_bbox = d_bboxes[idx];
+  shared_coords[threadIdx.x * 4] = my_bbox.x1;
+  shared_coords[threadIdx.x * 4 + 1] = my_bbox.y1;
+  shared_coords[threadIdx.x * 4 + 2] = my_bbox.x2;
+  shared_coords[threadIdx.x * 4 + 3] = my_bbox.y2;
+  shared_scores[threadIdx.x] = my_bbox.score;
+  block.sync();
+
+  for (int i = threadIdx.x + 1; i < blockDim.x && i + blockIdx.x * blockDim.x < num_bboxes; ++i) {
+    BoundingBox other_bbox;
+    other_bbox.x1 = shared_coords[i * 4];
+    other_bbox.y1 = shared_coords[i * 4 + 1];
+    other_bbox.x2 = shared_coords[i * 4 + 2];
+    other_bbox.y2 = shared_coords[i * 4 + 3];
+    float iou = IoU(my_bbox, other_bbox);
+
+    uint32_t mask = __ballot_sync(0xFFFFFFFF, iou > threshold);
+    if (threadIdx.x % 32 == 0) {
+      d_nms[i + blockIdx.x * blockDim.x] = (mask == 0);
     }
 
-    cv::dnn::DetectionOutputLayer<float>::nms(boxes, decoded_scores, decoded_labels, nms_threshold);
+    block.sync();
+  }
+}
 
-    // 将检测结果更新为执行NMS后的结果
-    decoded_boxes.resize(boxes.size());
-    for (size_t i = 0; i < boxes.size(); ++i) {
-        decoded_boxes[i] = cv::Rect2f(boxes[i].x, boxes[i].y, boxes[i].width - boxes[i].x, boxes[i].height - boxes[i].y);
+
+
+std::vector<BoundingBox>  apply_nms(std::vector<BoundingBox>& bboxes, float threshold, int top_k) {
+  int num_bboxes = bboxes.size();
+  std::vector<int> nms_flags(num_bboxes, 1);
+
+
+  for (int i = 0; i < num_bboxes; ++i) {
+    bboxes[i].label = i % 20; 
+  }
+
+  thrust::device_vector<BoundingBox> d_bboxes = bboxes;
+  thrust::sort(thrust::device, d_bboxes.begin(), d_bboxes.end(), BBoxCompare());
+  num_bboxes = min(top_k, num_bboxes);
+  d_bboxes.resize(num_bboxes);
+
+  thrust::device_vector<int> d_nms = nms_flags;
+  d_nms.resize(num_bboxes);
+ 
+  int threadsPerBlock = 256;
+  int blocksPerGrid = (num_bboxes + threadsPerBlock - 1) / threadsPerBlock;
+ 
+  nms_kernel<<<blocksPerGrid, threadsPerBlock, 5 * threadsPerBlock * sizeof(float)>>>
+  (thrust::raw_pointer_cast(d_bboxes.data()), thrust::raw_pointer_cast(d_nms.data()), num_bboxes, threshold);
+  cudaDeviceSynchronize();
+
+  // 复制结果回主机内存
+  thrust::host_vector<int> h_nms = d_nms;
+  std::vector<BoundingBox> result;
+  for (int i = 0; i < num_bboxes; ++i) {
+    if (h_nms[i]) {
+      result.push_back(d_bboxes[i]);
     }
+  }
+
+  return result;
 }
 
 
