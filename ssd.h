@@ -4,6 +4,19 @@
 #include <cudnn.h>
 #include <vector>
 
+struct BoundingBox {
+  float x1, y1, x2, y2, score;
+  int label;
+};
+
+// 比较函数，用于排序
+struct BBoxCompare {
+  __host__ __device__
+  bool operator()(const BoundingBox& a, const BoundingBox& b) const {
+    return a.score > b.score;
+  }
+};
+
 // 生成多尺度特征图
 void generate_multiscale_feature_maps(cudnnHandle_t cudnn_handle, const std::vector<float> &weights, const cv::cuda::GpuMat &input_features, std::vector<cv::cuda::GpuMat> &output_feature_maps);
 
@@ -17,7 +30,6 @@ void decode_predictions(const cv::cuda::GpuMat &class_predictions, const cv::cud
 void filter_predictions_by_confidence(const std::vector<cv::Rect> &decoded_bboxes, const std::vector<int> &decoded_class_ids, const std::vector<float> &decoded_scores, float confidence_threshold, std::vector<cv::Rect> &filtered_bboxes, std::vector<int> &filtered_class_ids, std::vector<float> &filtered_scores);
 
 // 非极大值抑制
-void non_max_suppression(const std::vector<cv::Rect> &filtered_bboxes, const std::vector<int> &filtered_class_ids, const std::vector<float> &filtered_scores, float iou_threshold, std::vector<cv::Rect> &final_bboxes, std::vector<int> &final_class_ids, std::vector<float> &final_scores);
-
+non_max_suppression(std::vector<BoundingBox>& bboxes, float threshold, int top_k);
 // SSD模型的完整检测过程
 void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float> &weights, const cv::cuda::GpuMat &input_image, std::vector<cv::Rect> &final_bboxes, std::vector<int> &final_class_ids, std::vector<float> &final_scores, float confidence_threshold = 0.5, float iou_threshold = 0.5);
