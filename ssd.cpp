@@ -205,5 +205,5 @@ void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float> &weights, c
 
 
     // 非极大值抑制
-    non_max_suppression(bboxes, iou_threshold, top_k);
+    std::vector<BoundingBox> nms_results = non_max_suppression(decoded_bboxes, iou_threshold, top_k);
 }
