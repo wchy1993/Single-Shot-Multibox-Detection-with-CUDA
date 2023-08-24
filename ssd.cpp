@@ -88,33 +88,7 @@ void decode_predictions(const std::vector<cv::cuda::GpuMat> &class_scores, const
 }
 
 
-// void apply_nms(float nms_threshold, std::vector<cv::Rect2f> &decoded_boxes, std::vector<int> &decoded_labels, std::vector<float> &decoded_scores) {
-//     std::vector<cv::dnn::DetectionOutputLayer<float>::Box> boxes;
-//     for (const auto &rect : decoded_boxes) {
-//         boxes.push_back({rect.x, rect.y, rect.x + rect.width, rect.y + rect.height});
-//     }
 
-//     cv::dnn::DetectionOutputLayer<float>::nms(boxes, decoded_scores, decoded_labels, nms_threshold);
-
-//     // 将检测结果更新为执行NMS后的结果
-//     decoded_boxes.resize(boxes.size());
-//     for (size_t i = 0; i < boxes.size(); ++i) {
-//         decoded_boxes[i] = cv::Rect2f(boxes[i].x, boxes[i].y, boxes[i].width - boxes[i].x, boxes[i].height - boxes[i].y);
-//     }
-// }
-
-// struct BoundingBox {
-//   float x1, y1, x2, y2, score;
-//   int label;
-// };
-
-// // 比较函数，用于排序
-// struct BBoxCompare {
-//   __host__ __device__
-//   bool operator()(const BoundingBox& a, const BoundingBox& b) const {
-//     return a.score > b.score;
-//   }
-// };
 
 __device__ float IoU(BoundingBox a, BoundingBox b) {
   float x1 = max(a.x1, b.x1);
