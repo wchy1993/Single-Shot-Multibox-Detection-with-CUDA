@@ -5,7 +5,6 @@
 
 void generate_multiscale_feature_maps(cudnnHandle_t cudnn_handle, const std::vector<std::vector<float>> &extra_conv_weights, const std::vector<std::vector<float>> &extra_conv_biases, const cv::cuda::GpuMat &vgg16_output, std::vector<cv::cuda::GpuMat> &feature_maps) {
     // 根据SSD论文中的额外卷积层结构，设置卷积层参数
-    // 每个元素表示 {kernel_size, kernel_size, stride, padding}
     std::vector<std::vector<int>> extra_conv_params = {
         {1, 1, 1, 0},
         {3, 3, 2, 1},
