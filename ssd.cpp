@@ -47,7 +47,7 @@ void predict_boxes_and_classes(cudnnHandle_t cudnn_handle, const std::vector<cv:
     }
 }
 
-void decode_predictions(const std::vector<cv::cuda::GpuMat> &class_scores, const std::vector<cv::cuda::GpuMat> &box_deltas, const std::vector<cv::Rect2f> &prior_boxes, float score_threshold, std::vector<cv::Rect2f> &decoded_boxes, std::vector<int> &decoded_labels, std::vector<float> &decoded_scores) {
+void decode_predictions(const std::vector<cv::cuda::GpuMat> &class_scores, const std::vector<cv::cuda::GpuMat> &box_deltas, const std::vector<cv::Rect2f> &prior_boxes, float score_threshold = 0.5, std::vector<cv::Rect2f> &decoded_boxes, std::vector<int> &decoded_labels, std::vector<float> &decoded_scores) {
     for (size_t i = 0; i < class_scores.size(); ++i) {
         for (int y = 0; y < class_scores[i].rows; ++y) {
             for (int x = 0; x < class_scores[i].cols; ++x) {
@@ -202,8 +202,20 @@ void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float> &weights, c
     std::vector<float> decoded_scores;
     decode_predictions(class_predictions, bbox_predictions, decoded_bboxes, decoded_class_ids, decoded_scores);
 
-
-
-    // 非极大值抑制
-    std::vector<BoundingBox> nms_results = non_max_suppression(decoded_bboxes, iou_threshold, top_k);
+    std::vector<cv::Rect> high_confidence_bboxes;
+    std::vector<int> high_confidence_class_ids;
+    std::vector<float> high_confidence_scores;
+    for (size_t i = 0; i < decoded_scores.size(); ++i) {
+        if (decoded_scores[i] >= confidence_threshold) {
+            high_confidence_bboxes.push_back(decoded_bboxes[i]);
+            high_confidence_class_ids.push_back(decoded_class_ids[i]);
+            high_confidence_scores.push_back(decoded_scores[i]);
+        }
+    }
+    
+    // Apply Non-maximum suppression on high-confidence predictions
+    final_bboxes = non_max_suppression(high_confidence_bboxes, iou_threshold, top_k);
+    // Note: Ensure that the class IDs and scores correspond to the retained bounding boxes after NMS
+    final_class_ids = high_confidence_class_ids;
+    final_scores = high_confidence_scores;
 }
