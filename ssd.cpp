@@ -202,11 +202,7 @@ void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float> &weights, c
     std::vector<float> decoded_scores;
     decode_predictions(class_predictions, bbox_predictions, decoded_bboxes, decoded_class_ids, decoded_scores);
 
-    //置信度阈值过滤
-    std::vector<cv::Rect> filtered_bboxes;
-    std::vector<int> filtered_class_ids;
-    std::vector<float> filtered_scores;
-    filter_predictions_by_confidence(decoded_bboxes, decoded_class_ids, decoded_scores, confidence_threshold, filtered_bboxes, filtered_class_ids, filtered_scores);
+
 
     // 非极大值抑制
     non_max_suppression(bboxes, iou_threshold, top_k);
