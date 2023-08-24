@@ -25,6 +25,7 @@ This project implements a Single Shot MultiBox Detector (SSD) for object detecti
 
 ## Reference
 
+```bibtex
 @inproceedings{wang2022speed,
   title={Speed-up Single Shot Detector on GPU with CUDA},
   author={Wang, Chenyu and Endo, Toshio and Hirofuchi, Takahiro and Ikegami, Tsutomu},
@@ -33,5 +34,5 @@ This project implements a Single Shot MultiBox Detector (SSD) for object detecti
   year={2022},
   organization={Springer}
 }
-
+```
 
