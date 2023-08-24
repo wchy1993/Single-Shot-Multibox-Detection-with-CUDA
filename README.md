@@ -23,6 +23,7 @@ This project implements a Single Shot MultiBox Detector (SSD) for object detecti
 - CUDNN: Deep neural network library to boost the training and inference process with NVIDIA GPUs.
 
 
+## Reference
 
 @inproceedings{wang2022speed,
   title={Speed-up Single Shot Detector on GPU with CUDA},
