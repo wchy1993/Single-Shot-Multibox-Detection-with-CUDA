@@ -228,8 +228,7 @@ void extract_features(
     input_descriptor = output_descriptor;
     d_input_data = d_output_data;
 
-    // 这里，您可以继续实现VGG-16的全连接层或根据SSD框架对网络进行修改。
-    // 在此示例中，我们将输出特征复制到输出GpuMat对象。
+
     int output_channels, output_height, output_width;
     cudnnGetTensor4dDescriptor(output_descriptor, CUDNN_DATA_FLOAT, 1, &output_channels, &output_height, &output_width);
 
