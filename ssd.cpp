@@ -104,18 +104,18 @@ void decode_predictions(const std::vector<cv::cuda::GpuMat> &class_scores, const
 //     }
 // }
 
-struct BoundingBox {
-  float x1, y1, x2, y2, score;
-  int label;
-};
+// struct BoundingBox {
+//   float x1, y1, x2, y2, score;
+//   int label;
+// };
 
-// 比较函数，用于排序
-struct BBoxCompare {
-  __host__ __device__
-  bool operator()(const BoundingBox& a, const BoundingBox& b) const {
-    return a.score > b.score;
-  }
-};
+// // 比较函数，用于排序
+// struct BBoxCompare {
+//   __host__ __device__
+//   bool operator()(const BoundingBox& a, const BoundingBox& b) const {
+//     return a.score > b.score;
+//   }
+// };
 
 __device__ float IoU(BoundingBox a, BoundingBox b) {
   float x1 = max(a.x1, b.x1);
