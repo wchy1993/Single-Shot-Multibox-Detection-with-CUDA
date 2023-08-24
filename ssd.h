@@ -3,6 +3,12 @@
 #include <opencv2/core/cuda.hpp>
 #include <cudnn.h>
 #include <vector>
+#include <algorithm>
+#include <iostream>
+#include <cuda_runtime.h>
+#include <thrust/device_vector.h>
+#include <thrust/sort.h>
+#include <thrust/execution_policy.h>
 
 struct BoundingBox {
   float x1, y1, x2, y2, score;
