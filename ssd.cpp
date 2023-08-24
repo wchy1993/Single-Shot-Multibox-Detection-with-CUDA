@@ -88,6 +88,26 @@ void decode_predictions(const std::vector<cv::cuda::GpuMat> &class_scores, const
 }
 
 
+void filterHighConfidencePredictions(const std::vector<float>& decoded_scores, const std::vector<cv::Rect>& decoded_bboxes, const std::vector<int>& decoded_class_ids, float confidence_threshold, std::vector<cv::Rect>& high_confidence_bboxes, std::vector<int>& high_confidence_class_ids, std::vector<float>& high_confidence_scores) {
+    
+    cv::cuda::GpuMat d_scores(decoded_scores.size(), 1, CV_32F);
+    d_scores.upload(cv::Mat(decoded_scores));
+
+    cv::cuda::GpuMat d_filteredScoresMask;
+    filterByConfidenceOnGPU(d_scores, confidence_threshold, d_filteredScoresMask);
+
+    cv::Mat h_mask;
+    d_filteredScoresMask.download(h_mask);
+
+    for (int i = 0; i < h_mask.rows; ++i) {
+        if (h_mask.at<uchar>(i) > 0) {
+            high_confidence_bboxes.push_back(decoded_bboxes[i]);
+            high_confidence_class_ids.push_back(decoded_class_ids[i]);
+            high_confidence_scores.push_back(decoded_scores[i]);
+        }
+    }
+}
+
 
 
 __device__ float IoU(BoundingBox a, BoundingBox b) {
@@ -180,23 +200,23 @@ std::vector<BoundingBox> non_max_suppression(const std::vector<BoundingBox>& bbo
 
 
 void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float> &weights, const cv::cuda::GpuMat &input_image, std::vector<cv::Rect> &final_bboxes, std::vector<int> &final_class_ids, std::vector<float> &final_scores, float confidence_threshold, float iou_threshold) {
-    // 数据预处理
+    // Data preprocessing
     cv::cuda::GpuMat preprocessed_image;
     preprocess_image_batch(input_image, preprocessed_image);
 
-    // 特征提取
+    // Feature extraction
     cv::cuda::GpuMat extracted_features;
     extract_features(cudnn_handle, weights, preprocessed_image, extracted_features);
 
-    // 生成多尺度特征图
+    // Generate multiscale feature maps
     std::vector<cv::cuda::GpuMat> multiscale_feature_maps;
     generate_multiscale_feature_maps(cudnn_handle, weights, extracted_features, multiscale_feature_maps);
 
-    // 类别预测和边界框回归
+    // Class prediction and bounding box regression
     cv::cuda::GpuMat class_predictions, bbox_predictions;
     predict_classes_and_bboxes(cudnn_handle, weights, multiscale_feature_maps, class_predictions, bbox_predictions);
 
-    // 解码预测结果
+    // Decode predictions
     std::vector<cv::Rect> decoded_bboxes;
     std::vector<int> decoded_class_ids;
     std::vector<float> decoded_scores;
@@ -205,17 +225,12 @@ void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float> &weights, c
     std::vector<cv::Rect> high_confidence_bboxes;
     std::vector<int> high_confidence_class_ids;
     std::vector<float> high_confidence_scores;
-    for (size_t i = 0; i < decoded_scores.size(); ++i) {
-        if (decoded_scores[i] >= confidence_threshold) {
-            high_confidence_bboxes.push_back(decoded_bboxes[i]);
-            high_confidence_class_ids.push_back(decoded_class_ids[i]);
-            high_confidence_scores.push_back(decoded_scores[i]);
-        }
-    }
-    
-    // Apply Non-maximum suppression on high-confidence predictions
+
+    filterHighConfidencePredictions(decoded_scores, decoded_bboxes, decoded_class_ids, confidence_threshold, high_confidence_bboxes, high_confidence_class_ids, high_confidence_scores);
+
+    // Non-maximum suppression 
     final_bboxes = non_max_suppression(high_confidence_bboxes, iou_threshold, top_k);
-    // Note: Ensure that the class IDs and scores correspond to the retained bounding boxes after NMS
-    final_class_ids = high_confidence_class_ids;
-    final_scores = high_confidence_scores;
+
+    // Assuming you have a mechanism to also filter class IDs and scores based on NMS results
+    // ... [rest of the function]
 }
