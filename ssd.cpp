@@ -169,7 +169,7 @@ __global__ void nms_kernel(BoundingBox* d_bboxes, int* d_nms, int num_bboxes, fl
 
 
 
-std::vector<BoundingBox> non_max_suppression(const std::vector<BoundingBox>& bboxes, float threshold, int top_k);
+std::vector<BoundingBox> non_max_suppression(const std::vector<BoundingBox>& bboxes, float threshold, int top_k){
   int num_bboxes = bboxes.size();
   std::vector<int> nms_flags(num_bboxes, 1);
 
