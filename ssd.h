@@ -32,8 +32,8 @@ void predict_classes_and_bboxes(cudnnHandle_t cudnn_handle, const std::vector<fl
 // 解码预测结果
 void decode_predictions(const cv::cuda::GpuMat &class_predictions, const cv::cuda::GpuMat &bbox_predictions, std::vector<cv::Rect> &decoded_bboxes, std::vector<int> &decoded_class_ids, std::vector<float> &decoded_scores);
 
-// 置信度阈值过滤
-void filter_predictions_by_confidence(const std::vector<cv::Rect> &decoded_bboxes, const std::vector<int> &decoded_class_ids, const std::vector<float> &decoded_scores, float confidence_threshold, std::vector<cv::Rect> &filtered_bboxes, std::vector<int> &filtered_class_ids, std::vector<float> &filtered_scores);
+// // 置信度阈值过滤
+// void filter_predictions_by_confidence(const std::vector<cv::Rect> &decoded_bboxes, const std::vector<int> &decoded_class_ids, const std::vector<float> &decoded_scores, float confidence_threshold, std::vector<cv::Rect> &filtered_bboxes, std::vector<int> &filtered_class_ids, std::vector<float> &filtered_scores);
 
 // 非极大值抑制
 std::vector<BoundingBox> non_max_suppression(const std::vector<BoundingBox>& bboxes, float threshold, int top_k);
