@@ -25,21 +25,41 @@ void generate_multiscale_feature_maps(cudnnHandle_t cudnn_handle, const std::vec
     }
 }
 
-void predict_boxes_and_classes(cudnnHandle_t cudnn_handle, const std::vector<cv::cuda::GpuMat> &feature_maps, const std::vector<std::vector<float>> &class_weights, const std::vector<std::vector<float>> &class_biases, const std::vector<std::vector<float>> &box_weights, const std::vector<std::vector<float>> &box_biases, std::vector<cv::cuda::GpuMat> &class_scores, std::vector<cv::cuda::GpuMat> &box_deltas) {
-    int num_classes = class_weights.size();  
-    int num_boxes = box_weights.size();     
+void apply_softmax(cudnnHandle_t cudnn_handle, cv::cuda::GpuMat &data) {
+    cudnnTensorDescriptor_t data_desc;
+    cudnnCreateTensorDescriptor(&data_desc);
+    cudnnSetTensor4dDescriptor(data_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, data.channels(), data.rows, data.cols);
+
+    float alpha = 1.0f;
+    float beta = 0.0f;
+    cudnnSoftmaxForward(cudnn_handle, CUDNN_SOFTMAX_ACCURATE, CUDNN_SOFTMAX_MODE_CHANNEL, &alpha, data_desc, data.ptr<float>(), &beta, data_desc, data.ptr<float>());
+
+    cudnnDestroyTensorDescriptor(data_desc);
+}
+
+
+void predict_classes_and_bboxes(cudnnHandle_t cudnn_handle, const std::vector<cv::cuda::GpuMat> &feature_maps, const std::vector<std::vector<float>> &class_weights, const std::vector<std::vector<float>> &class_biases, const std::vector<std::vector<float>> &box_weights, const std::vector<std::vector<float>> &box_biases, std::vector<cv::cuda::GpuMat> &class_scores, std::vector<cv::cuda::GpuMat> &box_deltas) {
+    int num_classes = class_weights.size();  // 类别数量
+    int num_boxes = box_weights.size();      // 边界框数量
 
     for (size_t i = 0; i < feature_maps.size(); ++i) {
         cv::cuda::GpuMat class_scores_map, box_deltas_map;
 
+        // 执行类别预测卷积
         perform_convolution(cudnn_handle, 3, 3, 1, 1, feature_maps[i], class_weights[i], class_biases[i], class_scores_map);
         
+        // 应用softmax
+        apply_softmax(cudnn_handle, class_scores_map);
+
+        // 执行边界框回归卷积
         perform_convolution(cudnn_handle, 3, 3, 1, 1, feature_maps[i], box_weights[i], box_biases[i], box_deltas_map);
 
+        // 保存类别得分和边界框坐标调整值
         class_scores.push_back(class_scores_map);
         box_deltas.push_back(box_deltas_map);
     }
 }
+
 
 void decode_predictions(const std::vector<cv::cuda::GpuMat> &class_scores, const std::vector<cv::cuda::GpuMat> &box_deltas, const std::vector<cv::Rect2f> &prior_boxes, float score_threshold = 0.5, std::vector<cv::Rect2f> &decoded_boxes, std::vector<int> &decoded_labels, std::vector<float> &decoded_scores) {
     for (size_t i = 0; i < class_scores.size(); ++i) {
