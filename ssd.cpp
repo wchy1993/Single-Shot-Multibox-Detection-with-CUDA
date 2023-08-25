@@ -4,7 +4,6 @@
 
 
 void generate_multiscale_feature_maps(cudnnHandle_t cudnn_handle, const std::vector<std::vector<float>> &extra_conv_weights, const std::vector<std::vector<float>> &extra_conv_biases, const cv::cuda::GpuMat &vgg16_output, std::vector<cv::cuda::GpuMat> &feature_maps) {
-    // 根据SSD论文中的额外卷积层结构，设置卷积层参数
     std::vector<std::vector<int>> extra_conv_params = {
         {1, 1, 1, 0},
         {3, 3, 2, 1},
@@ -19,29 +18,24 @@ void generate_multiscale_feature_maps(cudnnHandle_t cudnn_handle, const std::vec
     for (size_t i = 0; i < extra_conv_weights.size(); ++i) {
         cv::cuda::GpuMat output_features;
         perform_convolution(cudnn_handle, extra_conv_params[i][0], extra_conv_params[i][1], extra_conv_params[i][2], extra_conv_params[i][3], input_features, extra_conv_weights[i], extra_conv_biases[i], output_features);
-
-        // 保存生成的特征图
+    
         feature_maps.push_back(output_features);
-
-        // 将当前输出作为下一个卷积层的输入
+       
         input_features = output_features;
     }
 }
 
 void predict_boxes_and_classes(cudnnHandle_t cudnn_handle, const std::vector<cv::cuda::GpuMat> &feature_maps, const std::vector<std::vector<float>> &class_weights, const std::vector<std::vector<float>> &class_biases, const std::vector<std::vector<float>> &box_weights, const std::vector<std::vector<float>> &box_biases, std::vector<cv::cuda::GpuMat> &class_scores, std::vector<cv::cuda::GpuMat> &box_deltas) {
-    int num_classes = class_weights.size();  // 类别数量
-    int num_boxes = box_weights.size();      // 边界框数量
+    int num_classes = class_weights.size();  
+    int num_boxes = box_weights.size();     
 
     for (size_t i = 0; i < feature_maps.size(); ++i) {
         cv::cuda::GpuMat class_scores_map, box_deltas_map;
 
-        // 执行类别预测卷积
         perform_convolution(cudnn_handle, 3, 3, 1, 1, feature_maps[i], class_weights[i], class_biases[i], class_scores_map);
         
-        // 执行边界框回归卷积
         perform_convolution(cudnn_handle, 3, 3, 1, 1, feature_maps[i], box_weights[i], box_biases[i], box_deltas_map);
 
-        // 保存类别得分和边界框坐标调整值
         class_scores.push_back(class_scores_map);
         box_deltas.push_back(box_deltas_map);
     }
@@ -62,15 +56,12 @@ void decode_predictions(const std::vector<cv::cuda::GpuMat> &class_scores, const
                     }
                 }
 
-                // 检查得分阈值
                 if (max_score < score_threshold) {
                     continue;
                 }
 
-                // 获取边界框调整值
                 cv::Vec4f delta = box_deltas[i].at<cv::Vec4f>(y, x);
 
-                // 应用边界框调整值
                 cv::Rect2f prior_box = prior_boxes[y * class_scores[i].cols + x];
                 cv::Rect2f decoded_box;
                 decoded_box.x = prior_box.x + prior_box.width * delta[0];
@@ -78,7 +69,6 @@ void decode_predictions(const std::vector<cv::cuda::GpuMat> &class_scores, const
                 decoded_box.width = prior_box.width * std::exp(delta[2]);
                 decoded_box.height = prior_box.height * std::exp(delta[3]);
 
-                // 保存解码后的边界框、类别和得分
                 decoded_boxes.push_back(decoded_box);
                 decoded_labels.push_back(max_class_idx);
                 decoded_scores.push_back(max_score);
@@ -88,25 +78,6 @@ void decode_predictions(const std::vector<cv::cuda::GpuMat> &class_scores, const
 }
 
 
-void filterHighConfidencePredictions(const std::vector<float>& decoded_scores, const std::vector<cv::Rect>& decoded_bboxes, const std::vector<int>& decoded_class_ids, float confidence_threshold, std::vector<cv::Rect>& high_confidence_bboxes, std::vector<int>& high_confidence_class_ids, std::vector<float>& high_confidence_scores) {
-    
-    cv::cuda::GpuMat d_scores(decoded_scores.size(), 1, CV_32F);
-    d_scores.upload(cv::Mat(decoded_scores));
-
-    cv::cuda::GpuMat d_filteredScoresMask;
-    filterByConfidenceOnGPU(d_scores, confidence_threshold, d_filteredScoresMask);
-
-    cv::Mat h_mask;
-    d_filteredScoresMask.download(h_mask);
-
-    for (int i = 0; i < h_mask.rows; ++i) {
-        if (h_mask.at<uchar>(i) > 0) {
-            high_confidence_bboxes.push_back(decoded_bboxes[i]);
-            high_confidence_class_ids.push_back(decoded_class_ids[i]);
-            high_confidence_scores.push_back(decoded_scores[i]);
-        }
-    }
-}
 
 
 
@@ -162,40 +133,44 @@ __global__ void nms_kernel(BoundingBox* d_bboxes, int* d_nms, int num_bboxes, fl
 
 
 
-std::vector<BoundingBox> non_max_suppression(const std::vector<BoundingBox>& bboxes, float threshold, int top_k){
-  int num_bboxes = bboxes.size();
-  std::vector<int> nms_flags(num_bboxes, 1);
+std::vector<BoundingBox> non_max_suppression(const std::vector<cv::Rect2f>& decoded_boxes, const std::vector<int>& decoded_labels, const std::vector<float>& decoded_scores, float threshold, int top_k) {
+    int num_bboxes = decoded_boxes.size();
+    std::vector<BoundingBox> bboxes(num_bboxes);
+    std::vector<int> nms_flags(num_bboxes, 1);
 
-
-  for (int i = 0; i < num_bboxes; ++i) {
-    bboxes[i].label = i % 20; 
-  }
-
-  thrust::device_vector<BoundingBox> d_bboxes = bboxes;
-  thrust::sort(thrust::device, d_bboxes.begin(), d_bboxes.end(), BBoxCompare());
-  num_bboxes = min(top_k, num_bboxes);
-  d_bboxes.resize(num_bboxes);
-
-  thrust::device_vector<int> d_nms = nms_flags;
-  d_nms.resize(num_bboxes);
- 
-  int threadsPerBlock = 256;
-  int blocksPerGrid = (num_bboxes + threadsPerBlock - 1) / threadsPerBlock;
- 
-  nms_kernel<<<blocksPerGrid, threadsPerBlock, 5 * threadsPerBlock * sizeof(float)>>>
-  (thrust::raw_pointer_cast(d_bboxes.data()), thrust::raw_pointer_cast(d_nms.data()), num_bboxes, threshold);
-  cudaDeviceSynchronize();
-
-  // 复制结果回主机内存
-  thrust::host_vector<int> h_nms = d_nms;
-  std::vector<BoundingBox> result;
-  for (int i = 0; i < num_bboxes; ++i) {
-    if (h_nms[i]) {
-      result.push_back(d_bboxes[i]);
+    for (int i = 0; i < num_bboxes; ++i) {
+        bboxes[i].x1 = decoded_boxes[i].x;
+        bboxes[i].y1 = decoded_boxes[i].y;
+        bboxes[i].x2 = decoded_boxes[i].x + decoded_boxes[i].width;
+        bboxes[i].y2 = decoded_boxes[i].y + decoded_boxes[i].height;
+        bboxes[i].score = decoded_scores[i];
+        bboxes[i].label = decoded_labels[i];
     }
-  }
 
-  return result;
+    thrust::device_vector<BoundingBox> d_bboxes = bboxes;
+    thrust::sort(thrust::device, d_bboxes.begin(), d_bboxes.end(), BBoxCompare());
+    num_bboxes = min(top_k, num_bboxes);
+    d_bboxes.resize(num_bboxes);
+
+    thrust::device_vector<int> d_nms = nms_flags;
+    d_nms.resize(num_bboxes);
+ 
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (num_bboxes + threadsPerBlock - 1) / threadsPerBlock;
+ 
+    nms_kernel<<<blocksPerGrid, threadsPerBlock, 5 * threadsPerBlock * sizeof(float)>>>
+    (thrust::raw_pointer_cast(d_bboxes.data()), thrust::raw_pointer_cast(d_nms.data()), num_bboxes, threshold);
+    cudaDeviceSynchronize();
+
+    thrust::host_vector<int> h_nms = d_nms;
+    std::vector<BoundingBox> result;
+    for (int i = 0; i < num_bboxes; ++i) {
+        if (h_nms[i]) {
+            result.push_back(d_bboxes[i]);
+        }
+    }
+
+    return result;
 }
 
 
@@ -222,15 +197,14 @@ void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float> &weights, c
     std::vector<float> decoded_scores;
     decode_predictions(class_predictions, bbox_predictions, decoded_bboxes, decoded_class_ids, decoded_scores);
 
-    std::vector<cv::Rect> high_confidence_bboxes;
-    std::vector<int> high_confidence_class_ids;
-    std::vector<float> high_confidence_scores;
-
-    filterHighConfidencePredictions(decoded_scores, decoded_bboxes, decoded_class_ids, confidence_threshold, high_confidence_bboxes, high_confidence_class_ids, high_confidence_scores);
 
     // Non-maximum suppression 
-    final_bboxes = non_max_suppression(high_confidence_bboxes, iou_threshold, top_k);
+    std::vector<BoundingBox> suppressed_bboxes = non_max_suppression(decoded_bboxes, decoded_class_ids, decoded_scores, iou_threshold, top_k);
 
-    // Assuming you have a mechanism to also filter class IDs and scores based on NMS results
-    // ... [rest of the function]
+    for (const BoundingBox& bbox : suppressed_bboxes) {
+        final_bboxes.push_back(cv::Rect(bbox.x1, bbox.y1, bbox.x2 - bbox.x1, bbox.y2 - bbox.y1));
+        final_class_ids.push_back(bbox.label);
+        final_scores.push_back(bbox.score);
+    }
+
 }
