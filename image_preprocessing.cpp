@@ -1,6 +1,6 @@
 // preprocessing.cpp
 
-#include "preprocessing.h"
+#include "image_preprocessing.h"
 
 void preprocess_image_batch(const std::vector<cv::Mat> &input_images, std::vector<cv::cuda::GpuMat> &output_images, int output_width, int output_height) {
     // 图像归一化参数
