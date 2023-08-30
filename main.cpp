@@ -2,7 +2,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/cudaimgproc.hpp>
-#include "preprocessing.h"
+#include "image_preprocessing.h"
 #include "utils.h"
 #include "ssd.h"
 #include "visualization.h"
