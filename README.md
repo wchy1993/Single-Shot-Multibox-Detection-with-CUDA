@@ -1,4 +1,4 @@
-# Single shot multibox Detection with CUDA
+# Single Shot Multibox Detection with CUDA
 
 This project implements a Single Shot MultiBox Detector (SSD) for object detection. It utilizes CUDA for GPU-accelerated computation, ensuring efficient and speedy performance.
 
