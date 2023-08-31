@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     // Preprocess the image
     cv::cuda::GpuMat gpu_input_image, preprocessed_image;
     gpu_input_image.upload(input_image);
-    preprocess_image_batch(gpu_input_image, preprocessed_image);
+    // preprocess_image_batch(gpu_input_image, preprocessed_image);
 
     // Run SSD detection
     std::vector<cv::Rect> final_bboxes;
