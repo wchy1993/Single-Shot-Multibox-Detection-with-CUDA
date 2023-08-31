@@ -8,14 +8,15 @@ void preprocess_image_batch(const std::vector<cv::Mat> &input_images, std::vecto
     const cv::Scalar std(0.229, 0.224, 0.225);
 
     output_images.resize(input_images.size());
-    
+
     for (size_t i = 0; i < input_images.size(); ++i) {
         const cv::Mat& input_image = input_images[i];
+        cv::cuda::GpuMat gpu_input_image(input_image);
         cv::cuda::GpuMat& output_image = output_images[i];
 
         // 调整图像大小
         cv::cuda::GpuMat resized_image;
-        cv::cuda::resize(input_image, resized_image, cv::Size(output_width, output_height));
+        cv::cuda::resize(gpu_input_image, resized_image, cv::Size(output_width, output_height));
 
         // 将输入图像转换为32位浮点数
         cv::cuda::GpuMat float_image;
@@ -27,9 +28,10 @@ void preprocess_image_batch(const std::vector<cv::Mat> &input_images, std::vecto
 
         // 减去均值并除以标准差
         cv::cuda::subtract(rgb_image, mean, rgb_image, cv::noArray(), -1);
-        cv::cuda::divide(rgb_image, std, output_image, 1, -1);
+        cv::cuda::divide(rgb_image, std, output_image, 1, -1);    
     }
 }
+
 
 
 
