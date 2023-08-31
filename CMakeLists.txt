@@ -12,7 +12,7 @@ include_directories(${CUDAToolkit_INCLUDE_DIRS})
 
 add_executable(SSD_Detection
     main.cpp
-    preprocessing.cpp
+    image_preprocessing.cpp
     utils.cpp
     ssd.cpp
     visualization.cpp
