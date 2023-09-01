@@ -20,9 +20,12 @@ void perform_convolution(
 );
 
 void perform_pooling(
-    cudnnHandle_t &cudnn_handle,
-    cudnnTensorDescriptor_t &input_descriptor, cudnnTensorDescriptor_t &output_descriptor,
-    float *d_input_data, float *&d_output_data);
+    cudnnHandle_t& cudnn_handle,
+    cudnnTensorDescriptor_t& input_descriptor,
+    cudnnTensorDescriptor_t& output_descriptor,
+    float*& d_input_data,
+    float*& d_output_data
+);
 
 void extract_features(
     cudnnHandle_t &cudnn_handle, const std::vector<float> &conv_weights, const std::vector<float> &conv_biases, const cv::cuda::GpuMat &input_image, cv::cuda::GpuMat &output_features);
