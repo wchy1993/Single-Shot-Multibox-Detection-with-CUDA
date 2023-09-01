@@ -31,11 +31,17 @@ private:
 };
 
 void perform_convolution(
-    cudnnHandle_t &cudnn_handle,
-    const float *weights_data, const float *bias_data,
-    int num_filters, int input_channels, int filter_height, int filter_width,
-    cudnnTensorDescriptor_t &input_descriptor, cudnnTensorDescriptor_t &output_descriptor,
-    float *d_input_data, float *&d_output_data) {
+    cudnnHandle_t cudnn_handle,
+    int kernel_height,
+    int kernel_width,
+    int pad_height,
+    int pad_width,
+    cudnnTensorDescriptor_t input_descriptor,
+    float* d_input_data,
+    const std::vector<float> &weights,
+    const std::vector<float> &biases,
+    cudnnTensorDescriptor_t output_descriptor,
+    float* d_output_data) {
     
     // 创建卷积层描述符、卷积权重描述符和卷积偏置描述符
     cudnnConvolutionDescriptor_t convolution_descriptor;
