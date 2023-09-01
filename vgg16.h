@@ -6,11 +6,18 @@
 #include <vector>
 
 void perform_convolution(
-    cudnnHandle_t &cudnn_handle,
-    const float *weights_data, const float *bias_data,
-    int num_filters, int input_channels, int filter_height, int filter_width,
-    cudnnTensorDescriptor_t &input_descriptor, cudnnTensorDescriptor_t &output_descriptor,
-    float *d_input_data, float *&d_output_data);
+    cudnnHandle_t& cudnn_handle,
+    const std::vector<float>& weights,
+    const std::vector<float>& biases,
+    int input_channels,
+    int output_channels,
+    int kernel_size,
+    int stride,
+    cudnnTensorDescriptor_t& input_descriptor,
+    cudnnTensorDescriptor_t& output_descriptor,
+    float*& d_input_data,
+    float*& d_output_data
+);
 
 void perform_pooling(
     cudnnHandle_t &cudnn_handle,
