@@ -236,7 +236,11 @@ void extract_features(
 
 
     int output_channels, output_height, output_width;
-    cudnnGetTensor4dDescriptor(output_descriptor, CUDNN_DATA_FLOAT, 1, &output_channels, &output_height, &output_width);
+    cudnnDataType_t dataType;
+    int nbDims;
+    int dimA[4];
+    int strideA[4];
+    cudnnGetTensor4dDescriptor(output_descriptor, &dataType, &nbDims, dimA, strideA);
 
     output_features.create(output_height, output_width, CV_32FC(output_channels));
     cudaMemcpy(output_features.ptr<float>(), d_output_data, output_channels * output_height * output_width * sizeof(float), cudaMemcpyDeviceToHost);
