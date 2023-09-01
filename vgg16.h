@@ -4,6 +4,7 @@
 #include <cudnn.h>
 #include <opencv2/opencv.hpp>
 #include <vector>
+#include "image_preprocessing.h"
 
 void perform_convolution(
     cudnnHandle_t& cudnn_handle,
