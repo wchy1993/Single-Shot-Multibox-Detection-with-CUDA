@@ -23,6 +23,6 @@ void perform_pooling(cudnnHandle_t cudnn_handle, int window_height, int window_w
 
 
 void extract_features(
-    cudnnHandle_t &cudnn_handle, const std::vector<float> &conv_weights, const std::vector<float> &conv_biases, const cv::cuda::GpuMat &input_image, cv::cuda::GpuMat &output_features);
+    cudnnHandle_t &cudnn_handle, const std::vector<float*> &conv_weights, const std::vector<float*> &conv_biases, const cv::cuda::GpuMat &input_image, cv::cuda::GpuMat &output_features);
 
 #endif
