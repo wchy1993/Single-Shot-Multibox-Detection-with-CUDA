@@ -194,15 +194,14 @@ std::vector<BoundingBox> non_max_suppression(const std::vector<cv::Rect2f>& deco
 }
 
 
-void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float*> &weights, const cv::cuda::GpuMat &input_image, std::vector<cv::Rect> &final_bboxes, std::vector<int> &final_class_ids, std::vector<float> &final_scores, float confidence_threshold, float iou_threshold) {
+void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float*> &weights,const std::vector<float*> &biases const cv::cuda::GpuMat &input_image, std::vector<cv::Rect> &final_bboxes, std::vector<int> &final_class_ids, std::vector<float> &final_scores, float confidence_threshold, float iou_threshold) {
     // Data preprocessing
     cv::cuda::GpuMat preprocessed_image;
     preprocess_image_batch(input_image, preprocessed_image);
 
     // Feature extraction
     cv::cuda::GpuMat extracted_features;
-    extract_features(cudnn_handle, weights, preprocessed_image, extracted_features);
-
+    extract_features(cudnn_handle, weights, biases, input_image, extracted_features);
     // Generate multiscale feature maps
     std::vector<cv::cuda::GpuMat> multiscale_feature_maps;
     generate_multiscale_feature_maps(cudnn_handle, weights, extracted_features, multiscale_feature_maps);
