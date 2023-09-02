@@ -31,16 +31,16 @@ private:
 };
 
 void perform_convolution(
-    cudnnHandle_t& cudnn_handle,
+    cudnnHandle_t cudnn_handle,
     int input_channels,
     int output_channels,
     int kernel_size,
     int stride,
+    cudnnTensorDescriptor_t input_descriptor,
+    float* d_input_data,
     const std::vector<float>& weights,
     const std::vector<float>& biases,
-    cudnnTensorDescriptor_t& input_descriptor,
-    cudnnTensorDescriptor_t& output_descriptor,
-    float*& d_input_data,
+    cudnnTensorDescriptor_t output_descriptor,
     float*& d_output_data) 
 {
     // 创建卷积层描述符、卷积权重描述符和卷积偏置描述符
@@ -52,35 +52,32 @@ void perform_convolution(
     cudnnCreateFilterDescriptor(&filter_descriptor);
     cudnnCreateTensorDescriptor(&bias_descriptor);
 
-    int num_filters = output_channels;
-    int filter_height = kernel_size;
-    int filter_width = kernel_size;
+    int pad = 0; // no padding
+    cudnnSetConvolution2dDescriptor(convolution_descriptor, pad, pad, stride, stride, 1, 1, CUDNN_CONVOLUTION, CUDNN_DATA_FLOAT);
+    cudnnSetFilter4dDescriptor(filter_descriptor, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, output_channels, input_channels, kernel_size, kernel_size);
+    cudnnSetTensor4dDescriptor(bias_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, output_channels, 1, 1);
 
-    cudnnSetConvolution2dDescriptor(convolution_descriptor, 1, 1, 1, 1, 1, 1, CUDNN_CONVOLUTION, CUDNN_DATA_FLOAT);
-    cudnnSetFilter4dDescriptor(filter_descriptor, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, num_filters, input_channels, filter_height, filter_width);
-    cudnnSetTensor4dDescriptor(bias_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, num_filters, 1, 1);
-
-    // 为卷积层的权重和偏置分配GPU内存
+    // 为卷积层的权重和偏置分配 GPU 内存
     float *d_filter_data;
     float *d_bias_data;
-    cudaMalloc(&d_filter_data, num_filters * input_channels * filter_height * filter_width * sizeof(float));
-    cudaMalloc(&d_bias_data, num_filters * sizeof(float));
+    cudaMalloc(&d_filter_data, output_channels * input_channels * kernel_size * kernel_size * sizeof(float));
+    cudaMalloc(&d_bias_data, output_channels * sizeof(float));
 
-    // 将权重数据复制到GPU内存
-    cudaMemcpy(d_filter_data, weights.data(), num_filters * input_channels * filter_height * filter_width * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_bias_data, biases.data(), num_filters * sizeof(float), cudaMemcpyHostToDevice);
+    // 将权重数据复制到 GPU 内存
+    cudaMemcpy(d_filter_data, weights.data(), output_channels * input_channels * kernel_size * kernel_size * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_bias_data, biases.data(), output_channels * sizeof(float), cudaMemcpyHostToDevice);
 
     // 计算输出尺寸
     int output_height, output_width;
     cudnnGetConvolution2dForwardOutputDim(convolution_descriptor, input_descriptor, filter_descriptor, &output_height, &output_width);
 
     // 设置输出张量描述符
-    cudnnSetTensor4dDescriptor(output_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, num_filters, output_height, output_width);
+    cudnnSetTensor4dDescriptor(output_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, output_channels, output_height, output_width);
 
     // 执行卷积操作
     float alpha = 1.0f;
     float beta = 0.0f;
-    cudaMalloc(&d_output_data, num_filters * output_height * output_width * sizeof(float));
+    cudaMalloc(&d_output_data, output_channels * output_height * output_width * sizeof(float));
 
     cudnnConvolutionForward(cudnn_handle, &alpha, input_descriptor, d_input_data, filter_descriptor, d_filter_data, convolution_descriptor, CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM, nullptr, 0, &beta, output_descriptor, d_output_data);
 
@@ -103,6 +100,7 @@ void perform_convolution(
     cudaFree(d_filter_data);
     cudaFree(d_bias_data);
 }
+
 
 
 void perform_pooling(
