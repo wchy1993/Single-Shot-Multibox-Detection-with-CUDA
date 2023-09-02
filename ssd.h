@@ -36,4 +36,4 @@ void decode_predictions(const cv::cuda::GpuMat &class_predictions, const cv::cud
 // 非极大值抑制
 std::vector<BoundingBox> non_max_suppression(const std::vector<cv::Rect2f>& decoded_boxes, const std::vector<int>& decoded_labels, const std::vector<float>& decoded_scores, float threshold, int top_k);
 
-void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float> &weights, const cv::cuda::GpuMat &input_image, std::vector<cv::Rect> &final_bboxes, std::vector<int> &final_class_ids, std::vector<float> &final_scores, float confidence_threshold = 0.5, float iou_threshold = 0.5);
+void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float*> &weights,const std::vector<float*> &biases const cv::cuda::GpuMat &input_image, std::vector<cv::Rect> &final_bboxes, std::vector<int> &final_class_ids, std::vector<float> &final_scores, float confidence_threshold, float iou_threshold) {
