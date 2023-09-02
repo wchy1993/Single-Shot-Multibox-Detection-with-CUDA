@@ -38,10 +38,10 @@ void perform_convolution(
     int stride,
     cudnnTensorDescriptor_t input_descriptor,
     float* d_input_data,
-    const std::vector<float>& weights,
-    const std::vector<float>& biases,
+    float* d_filter_data,
+    float* d_bias_data,
     cudnnTensorDescriptor_t output_descriptor,
-    float*& d_output_data) 
+    float*& d_output_data)
 {
     // 创建卷积层描述符、卷积权重描述符和卷积偏置描述符
     cudnnConvolutionDescriptor_t convolution_descriptor;
