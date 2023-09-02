@@ -7,18 +7,17 @@
 #include "image_preprocessing.h"
 
 void perform_convolution(
-    cudnnHandle_t& cudnn_handle,
+    cudnnHandle_t cudnn_handle,
     int input_channels,
     int output_channels,
     int kernel_size,
     int stride,
+    cudnnTensorDescriptor_t input_descriptor,
+    float* d_input_data,
     const std::vector<float>& weights,
     const std::vector<float>& biases,
-    cudnnTensorDescriptor_t& input_descriptor,
-    cudnnTensorDescriptor_t& output_descriptor,
-    float*& d_input_data,
-    float*& d_output_data
-);
+    cudnnTensorDescriptor_t output_descriptor,
+    float*& d_output_data); 
 
 void perform_pooling(cudnnHandle_t cudnn_handle, int window_height, int window_width, int pooling_stride, cudnnTensorDescriptor_t input_descriptor, float* d_input_data, cudnnTensorDescriptor_t output_descriptor, float* d_output_data);
 
