@@ -8,12 +8,12 @@
 
 void perform_convolution(
     cudnnHandle_t& cudnn_handle,
-    const std::vector<float>& weights,
-    const std::vector<float>& biases,
     int input_channels,
     int output_channels,
     int kernel_size,
     int stride,
+    const std::vector<float>& weights,
+    const std::vector<float>& biases,
     cudnnTensorDescriptor_t& input_descriptor,
     cudnnTensorDescriptor_t& output_descriptor,
     float*& d_input_data,
