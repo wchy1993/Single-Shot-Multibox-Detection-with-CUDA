@@ -194,7 +194,7 @@ std::vector<BoundingBox> non_max_suppression(const std::vector<cv::Rect2f>& deco
 }
 
 
-void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float> &weights, const cv::cuda::GpuMat &input_image, std::vector<cv::Rect> &final_bboxes, std::vector<int> &final_class_ids, std::vector<float> &final_scores, float confidence_threshold, float iou_threshold) {
+void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float*> &weights, const cv::cuda::GpuMat &input_image, std::vector<cv::Rect> &final_bboxes, std::vector<int> &final_class_ids, std::vector<float> &final_scores, float confidence_threshold, float iou_threshold) {
     // Data preprocessing
     cv::cuda::GpuMat preprocessed_image;
     preprocess_image_batch(input_image, preprocessed_image);
