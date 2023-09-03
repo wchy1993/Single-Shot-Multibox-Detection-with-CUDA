@@ -80,18 +80,26 @@ void apply_softmax(cudnnHandle_t cudnn_handle, cv::cuda::GpuMat &data) {
 void predict_classes_and_bboxes(cudnnHandle_t cudnn_handle, const std::vector<cv::cuda::GpuMat> &feature_maps, const std::vector<std::vector<float>> &class_weights, const std::vector<std::vector<float>> &class_biases, const std::vector<std::vector<float>> &box_weights, const std::vector<std::vector<float>> &box_biases, std::vector<cv::cuda::GpuMat> &class_scores, std::vector<cv::cuda::GpuMat> &box_deltas) {
     int num_classes = class_weights.size();  // 类别数量
     int num_boxes = box_weights.size();      // 边界框数量
+    // 创建输入描述符
+    cudnnTensorDescriptor_t input_descriptor;
+    cudnnCreateTensorDescriptor(&input_descriptor);
+    cudnnSetTensor4dDescriptor(input_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, 3, feature_maps[i].rows, feature_maps[i].cols);
 
+    // 创建输出描述符
+    cudnnTensorDescriptor_t output_descriptor;
+    cudnnCreateTensorDescriptor(&output_descriptor);
+    
     for (size_t i = 0; i < feature_maps.size(); ++i) {
         cv::cuda::GpuMat class_scores_map, box_deltas_map;
 
         // 执行类别预测卷积
-        perform_convolution(cudnn_handle, 3, 3, 1, 1, feature_maps[i], class_weights[i], class_biases[i], class_scores_map);
+        perform_convolution(cudnn_handle, 3, 3, 1, 1,input_descriptor， feature_maps[i], class_weights[i], class_biases[i], output_descriptor，class_scores_map);
         
         // 应用softmax
         apply_softmax(cudnn_handle, class_scores_map);
 
         // 执行边界框回归卷积
-        perform_convolution(cudnn_handle, 3, 3, 1, 1, feature_maps[i], box_weights[i], box_biases[i], box_deltas_map);
+        perform_convolution(cudnn_handle, 3, 3, 1, 1, input_descriptor，feature_maps[i], box_weights[i], box_biases[i], output_descriptor，box_deltas_map);
 
         // 保存类别得分和边界框坐标调整值
         class_scores.push_back(class_scores_map);
