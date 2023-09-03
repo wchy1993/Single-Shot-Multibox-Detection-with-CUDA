@@ -24,7 +24,7 @@ struct BBoxCompare {
 };
 
 // 生成多尺度特征图
-void generate_multiscale_feature_maps(cudnnHandle_t cudnn_handle, const std::vector<std::vector<float>> &extra_conv_weights, const std::vector<std::vector<float>> &extra_conv_biases, const cv::cuda::GpuMat &vgg16_output, std::vector<cv::cuda::GpuMat> &feature_maps) 
+void generate_multiscale_feature_maps(cudnnHandle_t cudnn_handle, const std::vector<std::vector<float>> &extra_conv_weights, const std::vector<std::vector<float>> &extra_conv_biases, const cv::cuda::GpuMat &vgg16_output, std::vector<cv::cuda::GpuMat> &feature_maps); 
 // 类别预测和边界框回归
 void apply_softmax(cudnnHandle_t cudnn_handle, cv::cuda::GpuMat &data);
 void predict_classes_and_bboxes(cudnnHandle_t cudnn_handle, const std::vector<float> &weights, const std::vector<cv::cuda::GpuMat> &feature_maps, cv::cuda::GpuMat &class_predictions, cv::cuda::GpuMat &bbox_predictions);
