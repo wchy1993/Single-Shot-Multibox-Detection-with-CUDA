@@ -5,9 +5,9 @@
 
 void generate_multiscale_feature_maps(
     cudnnHandle_t cudnn_handle, 
-    const std::vector<std::vector<float>> &extra_conv_weights, 
-    const std::vector<std::vector<float>> &extra_conv_biases, 
-    const cv::cuda::GpuMat &vgg16_output, 
+    const std::vector<float*> &extra_conv_weights, 
+    const std::vector<float*> &extra_conv_biases, 
+    const std::vector<float*>t &vgg16_output, 
     std::vector<cv::cuda::GpuMat> &feature_maps) 
 {
     std::vector<std::vector<int>> extra_conv_params = {
