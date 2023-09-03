@@ -77,7 +77,7 @@ void apply_softmax(cudnnHandle_t cudnn_handle, cv::cuda::GpuMat &data) {
 }
 
 
-void predict_classes_and_bboxes(cudnnHandle_t cudnn_handle, const std::vector<cv::cuda::GpuMat> &feature_maps, const std::vector<std::vector<float>> &class_weights, const std::vector<std::vector<float>> &class_biases, const std::vector<std::vector<float>> &box_weights, const std::vector<std::vector<float>> &box_biases, std::vector<cv::cuda::GpuMat> &class_scores, std::vector<cv::cuda::GpuMat> &box_deltas) {
+void predict_classes_and_bboxes(cudnnHandle_t cudnn_handle, const std::vector<cv::cuda::GpuMat> &feature_maps, const std::vector<float*> &class_weights,  const std::vector<float*> &class_biases,  const std::vector<float*> &box_weights, const std::vector<std::vector<float>> &box_biases, std::vector<cv::cuda::GpuMat> &class_scores, std::vector<cv::cuda::GpuMat> &box_deltas) {
     int num_classes = class_weights.size();  // 类别数量
     int num_boxes = box_weights.size();      // 边界框数量
     // 创建输入描述符
@@ -241,7 +241,7 @@ std::vector<BoundingBox> non_max_suppression(const std::vector<cv::Rect2f>& deco
 }
 
 
-void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float*> &weights,const std::vector<float*> &biases const cv::cuda::GpuMat &input_image, std::vector<cv::Rect> &final_bboxes, std::vector<int> &final_class_ids, std::vector<float> &final_scores, float confidence_threshold, float iou_threshold) {
+void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float*> &weights, const std::vector<float*> &biases，  const std::vector<float*> &class_weights,  const std::vector<float*> &class_biases,  const std::vector<float*> &box_weights, const std::vector<std::vector<float>> &box_biases, const cv::cuda::GpuMat &input_image, std::vector<cv::Rect> &final_bboxes, std::vector<int> &final_class_ids, std::vector<float> &final_scores, float confidence_threshold, float iou_threshold) {
     // Data preprocessing
     cv::cuda::GpuMat preprocessed_image;
     preprocess_image_batch(input_image, preprocessed_image);
@@ -251,11 +251,11 @@ void ssd_detect(cudnnHandle_t cudnn_handle, const std::vector<float*> &weights,c
     extract_features(cudnn_handle, weights, biases, input_image, extracted_features);
     // Generate multiscale feature maps
     std::vector<cv::cuda::GpuMat> multiscale_feature_maps;
-    generate_multiscale_feature_maps(cudnn_handle, weights, extracted_features, multiscale_feature_maps);
+    generate_multiscale_feature_maps(cudnn_handle, weights, biases，extracted_features, multiscale_feature_maps);
 
     // Class prediction and bounding box regression
     cv::cuda::GpuMat class_predictions, bbox_predictions;
-    predict_classes_and_bboxes(cudnn_handle, weights, multiscale_feature_maps, class_predictions, bbox_predictions);
+    predict_classes_and_bboxes(cudnn_handle, class_weights, class_biases, box_weights, box_biases, multiscale_feature_maps, class_predictions, bbox_predictions);
 
     // Decode predictions
     std::vector<cv::Rect> decoded_bboxes;
