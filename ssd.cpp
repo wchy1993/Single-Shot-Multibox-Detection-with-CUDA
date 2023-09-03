@@ -3,7 +3,13 @@
 #include "vgg16.h"
 
 
-void generate_multiscale_feature_maps(cudnnHandle_t cudnn_handle, const std::vector<std::vector<float>> &extra_conv_weights, const std::vector<std::vector<float>> &extra_conv_biases, const cv::cuda::GpuMat &vgg16_output, std::vector<cv::cuda::GpuMat> &feature_maps) {
+void generate_multiscale_feature_maps(
+    cudnnHandle_t cudnn_handle, 
+    const std::vector<std::vector<float>> &extra_conv_weights, 
+    const std::vector<std::vector<float>> &extra_conv_biases, 
+    const cv::cuda::GpuMat &vgg16_output, 
+    std::vector<cv::cuda::GpuMat> &feature_maps) 
+{
     std::vector<std::vector<int>> extra_conv_params = {
         {1, 1, 1, 0},
         {3, 3, 2, 1},
@@ -17,13 +23,46 @@ void generate_multiscale_feature_maps(cudnnHandle_t cudnn_handle, const std::vec
     cv::cuda::GpuMat input_features = vgg16_output;
     for (size_t i = 0; i < extra_conv_weights.size(); ++i) {
         cv::cuda::GpuMat output_features;
-        perform_convolution(cudnn_handle, extra_conv_params[i][0], extra_conv_params[i][1], extra_conv_params[i][2], extra_conv_params[i][3], input_features, extra_conv_weights[i], extra_conv_biases[i], output_features);
-    
+        cudnnTensorDescriptor_t input_descriptor, output_descriptor;
+        cudnnCreateTensorDescriptor(&input_descriptor);
+        cudnnCreateTensorDescriptor(&output_descriptor);
+
+        int input_channels = input_features.channels();
+        int input_height = input_features.rows;
+        int input_width = input_features.cols;
+        cudnnSetTensor4dDescriptor(input_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, input_channels, input_height, input_width);
+
+        int output_channels = extra_conv_params[i][1]; // assuming this is the output channels
+        int output_height = (input_height + 2 * extra_conv_params[i][3] - extra_conv_params[i][2]) / extra_conv_params[i][3] + 1;
+        int output_width = (input_width + 2 * extra_conv_params[i][3] - extra_conv_params[i][2]) / extra_conv_params[i][3] + 1;
+        cudnnSetTensor4dDescriptor(output_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, output_channels, output_height, output_width);
+
+        float* d_input_data = (float*)input_features.ptr<float>();
+        float* d_filter_data = extra_conv_weights[i].data();
+        float* d_bias_data = extra_conv_biases[i].data();
+        float* d_output_data;
+        perform_convolution(
+            cudnn_handle, 
+            extra_conv_params[i][0], 
+            extra_conv_params[i][1], 
+            extra_conv_params[i][2], 
+            extra_conv_params[i][3], 
+            input_descriptor,
+            d_input_data,
+            d_filter_data,
+            d_bias_data,
+            output_descriptor,
+            d_output_data
+        );
+
+        output_features.upload(cv::Mat(output_height, output_width, CV_32FC(output_channels), d_output_data));
         feature_maps.push_back(output_features);
-       
         input_features = output_features;
+        cudnnDestroyTensorDescriptor(input_descriptor);
+        cudnnDestroyTensorDescriptor(output_descriptor);
     }
 }
+
 
 void apply_softmax(cudnnHandle_t cudnn_handle, cv::cuda::GpuMat &data) {
     cudnnTensorDescriptor_t data_desc;
