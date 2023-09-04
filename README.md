@@ -18,9 +18,9 @@ This project implements a Single Shot MultiBox Detector (SSD) for object detecti
 
 ## Dependencies
 
-- OpenCV: For image processing and manipulation.
-- CUDA: For GPU-accelerated operations.
-- CUDNN: Deep neural network library to boost the training and inference process with NVIDIA GPUs.
+- OpenCV: For image processing and manipulation.（4.3）
+- CUDA: For GPU-accelerated operations. (11.0)
+- CUDNN: Deep neural network library to boost the training and inference process with NVIDIA GPUs. (8.0)
 
 
 ## Reference
