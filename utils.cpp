@@ -9,10 +9,9 @@ bool load_weights_and_biases_from_binary(const std::string& binary_file,
         return false;
     }
 
-    bool isWeight = true;  // Flag to determine if we're reading weights or biases
+    bool isWeight = true; 
 
     while (!file.eof()) {
-        // Read the size of the tensor
         uint64_t tensor_size;
         file.read(reinterpret_cast<char*>(&tensor_size), sizeof(tensor_size));
         if (file.eof()) {
