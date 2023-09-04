@@ -1,11 +1,15 @@
 #include "utils.h"
 
-bool load_weights_from_binary(const std::string& binary_file, std::vector<std::vector<float>>& weights) {
+bool load_weights_and_biases_from_binary(const std::string& binary_file, 
+                                         std::vector<std::vector<float>>& weights, 
+                                         std::vector<std::vector<float>>& biases) {
     std::ifstream file(binary_file, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Failed to open binary file: " << binary_file << std::endl;
         return false;
     }
+
+    bool isWeight = true;  // Flag to determine if we're reading weights or biases
 
     while (!file.eof()) {
         // Read the size of the tensor
@@ -23,7 +27,13 @@ bool load_weights_from_binary(const std::string& binary_file, std::vector<std::v
             tensor_data[i] = value;
         }
 
-        weights.push_back(tensor_data);
+        if (isWeight) {
+            weights.push_back(tensor_data);
+        } else {
+            biases.push_back(tensor_data);
+        }
+
+        isWeight = !isWeight;  // Toggle the flag
     }
 
     file.close();
