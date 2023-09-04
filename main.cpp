@@ -23,16 +23,16 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Load weights from binary file
-    std::vector<std::vector<float>> weights;
-    if (!load_weights_from_binary(binary_weights_path, weights)) {
+    // Load weights and biases from binary file
+    std::vector<float*> weights, biases, class_weights, class_biases, box_weights;
+    std::vector<std::vector<float>> box_biases;
+    if (!load_weights_and_biases_from_binary(binary_weights_path, weights, biases, class_weights, class_biases, box_weights, box_biases)) {
         return 1;
     }
 
     // Preprocess the image
     cv::cuda::GpuMat gpu_input_image;
     gpu_input_image.upload(input_image);
-    // preprocess_image_batch(gpu_input_image, preprocessed_image);
 
     // Run SSD detection
     std::vector<cv::Rect> final_bboxes;
@@ -43,7 +43,18 @@ int main(int argc, char** argv) {
 
     cudnnHandle_t cudnn_handle;
     cudnnCreate(&cudnn_handle);
-    ssd_detect(cudnn_handle, weights, preprocessed_image, final_bboxes, final_class_ids, final_scores, confidence_threshold, iou_threshold);
+
+    // Start the timer
+    int64 start = cv::getTickCount();
+    
+    ssd_detect(cudnn_handle, weights, biases, class_weights, class_biases, box_weights, box_biases, gpu_input_image, final_bboxes, final_class_ids, final_scores, confidence_threshold, iou_threshold);
+    
+    // Stop the timer
+    int64 end = cv::getTickCount();
+    double duration = (end - start) / cv::getTickFrequency() * 1000;  // Convert to milliseconds
+    
+    std::cout << "SSD Detection took " << duration << " ms." << std::endl;
+
     cudnnDestroy(cudnn_handle);
 
     // Visualize the detection results
@@ -56,3 +67,9 @@ int main(int argc, char** argv) {
 
     return 0;
 }
+
+
+
+
+
+
